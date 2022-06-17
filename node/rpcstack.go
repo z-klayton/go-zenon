@@ -3,6 +3,7 @@ package node
 import (
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -62,6 +63,10 @@ type httpServer struct {
 	endpoint string
 	host     string
 	port     int
+
+	// TLS handler things.
+	serverCert string
+	srvKey     string
 
 	handlerNames map[string]string
 }
@@ -164,6 +169,78 @@ func (h *httpServer) start() error {
 		name := h.handlerNames[path]
 		if !logged[name] {
 			log.Info(name+" enabled", "url", "http://"+listener.Addr().String()+path)
+			logged[name] = true
+		}
+	}
+	return nil
+}
+
+// startSecure starts the Secure HTTP server if it is enabled and not already running.
+func (h *httpServer) startSecure(certificate, key string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.endpoint == "" || h.listener != nil || certificate == "" || key == "" || h.host == "" {
+		return nil // already running or not configured
+	}
+
+	// Initialize the secure server.
+	config := &tls.Config{ServerName: h.host}
+	h.server = &http.Server{Handler: h, TLSConfig: config}
+	if h.timeouts != (rpc.HTTPTimeouts{}) {
+		checkTimeouts(&h.timeouts)
+		h.server.ReadTimeout = h.timeouts.ReadTimeout
+		h.server.WriteTimeout = h.timeouts.WriteTimeout
+		h.server.IdleTimeout = h.timeouts.IdleTimeout
+	}
+
+	// Start the secure server.
+	cer, err := tls.LoadX509KeyPair(certificate, key)
+	if err != nil {
+		return err
+	}
+	config = &tls.Config{Certificates: []tls.Certificate{cer}}
+	listener, err := tls.Listen("tcp", h.endpoint, config)
+	if err != nil {
+		// If the secure server fails to start, we need to clear out the RPC and WS
+		// configuration so they can be configured another time.
+		h.disableRPC()
+		h.disableWS()
+		return err
+	}
+	h.listener = listener
+	go h.server.Serve(listener)
+
+	if h.wsAllowed() {
+		url := fmt.Sprintf("wss://%v", listener.Addr())
+		if h.wsConfig.prefix != "" {
+			url += h.wsConfig.prefix
+		}
+		h.log.Info("Secure WebSocket enabled", "url", url)
+	}
+	// if server is websocket only, return after logging
+	if !h.rpcAllowed() {
+		return nil
+	}
+	// Log https endpoint.
+	h.log.Info("HTTPS server started",
+		"endpoint", listener.Addr(),
+		"prefix", h.httpConfig.prefix,
+		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
+		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
+	)
+
+	// Log all handlers mounted on server.
+	var paths []string
+	for path := range h.handlerNames {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	logged := make(map[string]bool, len(paths))
+	for _, path := range paths {
+		name := h.handlerNames[path]
+		if !logged[name] {
+			log.Info(name+" enabled", "url", "https://"+listener.Addr().String()+path)
 			logged[name] = true
 		}
 	}

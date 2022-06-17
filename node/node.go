@@ -33,6 +33,8 @@ type Node struct {
 	rpcAPIs []rpc.API   // List of APIs currently provided by the node
 	http    *httpServer //
 	ws      *httpServer //
+	https   *httpServer //
+	wss     *httpServer //
 
 	// Channel to wait for termination notifications
 	stop        chan struct{}
@@ -48,7 +50,9 @@ func NewNode(conf *Config) (*Node, error) {
 		stop:          make(chan struct{}),
 		walletManager: wallet.New(conf.makeWalletConfig()),
 		http:          newHTTPServer(rpc.DefaultHTTPTimeouts),
+		https:         newHTTPServer(rpc.DefaultHTTPTimeouts),
 		ws:            newHTTPServer(rpc.DefaultHTTPTimeouts),
+		wss:           newHTTPServer(rpc.DefaultHTTPTimeouts),
 	}
 
 	// prepare node

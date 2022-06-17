@@ -22,20 +22,34 @@ type ProducerConfig struct {
 	KeyFilePath string
 	Password    string
 }
+type TLS struct {
+	Certificate string
+	Key         string
+}
 type RPCConfig struct {
 	EnableHTTP bool
 	EnableWS   bool
 
-	HTTPHost string
-	HTTPPort int
-	WSHost   string
-	WSPort   int
+	EnableHTTPS bool
+	EnableWSS   bool
+
+	HTTPHost  string
+	HTTPPort  int
+	WSHost    string
+	WSPort    int
+	HTTPSHost string
+	HTTPSPort int
+	WSSHost   string
+	WSSPort   int
 
 	Endpoints []string
 
-	HTTPVirtualHosts []string
-	HTTPCors         []string
-	WSOrigins        []string
+	HTTPVirtualHosts  []string
+	HTTPSVirtualHosts []string
+	HTTPCors          []string
+	WSOrigins         []string
+
+	TLS TLS
 }
 type NetConfig struct {
 	ListenHost string
@@ -214,4 +228,16 @@ func (c *Config) WSEndpoint() string {
 		return ""
 	}
 	return fmt.Sprintf("%s:%d", c.RPC.WSHost, c.RPC.WSPort)
+}
+func (c *Config) HTTPSEndpoint() string {
+	if c.RPC.HTTPHost == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", c.RPC.HTTPSHost, c.RPC.HTTPSPort)
+}
+func (c *Config) WSSEndpoint() string {
+	if c.RPC.WSSHost == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", c.RPC.WSSHost, c.RPC.WSSPort)
 }

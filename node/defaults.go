@@ -21,12 +21,14 @@ var DefaultNodeConfig = Config{
 	LogLevel: "info",
 
 	RPC: RPCConfig{
-		HTTPPort:   p2p.DefaultHTTPPort,
-		HTTPHost:   "0.0.0.0",
-		EnableHTTP: true,
-		WSPort:     p2p.DefaultWSPort,
-		WSHost:     "0.0.0.0",
-		EnableWS:   true,
+		HTTPPort:    p2p.DefaultHTTPPort,
+		HTTPHost:    "0.0.0.0",
+		EnableHTTP:  true,
+		WSPort:      p2p.DefaultWSPort,
+		WSHost:      "0.0.0.0",
+		EnableWS:    true,
+		EnableHTTPS: false,
+		EnableWSS:   false,
 
 		HTTPCors:  []string{"*"},
 		WSOrigins: []string{"*"},
